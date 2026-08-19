@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#fff4dd" />
+    <meta name="description" content="직접 톡 깨고 노릇하게 굽는 파스텔 2D 계란 요리 게임" />
+    <script>
+      (() => {
+        let theme = "light";
+        try {
+          const saved = localStorage.getItem("eggcellent-theme-v2");
+          theme = saved === "light" || saved === "dark" ? saved : "light";
+        } catch {
+          theme = "light";
+        }
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#493a31" : "#fff4dd";
+      })();
+    </script>
+    <title>오늘의 계란 — 살살 톡톡</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game-canvas" tabindex="0" aria-label="2D 계란 후라이 요리 게임" aria-describedby="game-instructions"></canvas>
+      <p class="visually-hidden" id="game-instructions">계란을 아래로 휘둘러 깨고, 팬을 좌우로 굴린 뒤 알맞은 순간 위로 밀어 뒤집으세요. 실수해도 요리는 계속됩니다.</p>
+      <div class="scene-wash" aria-hidden="true"></div>
+      <div class="grain" aria-hidden="true"></div>
+
+      <header class="topbar">
+        <div class="brand" aria-label="오늘의 계란">
+          <span class="brand-mark"><span></span></span>
+          <span class="brand-copy">
+            <strong>오늘의 계란</strong>
+            <small>살살 · 톡톡 · 노릇</small>
+          </span>
+        </div>
+
+        <div class="stats" aria-label="게임 상태">
+          <div class="stat-pill score-pill">
+            <span class="stat-icon" aria-hidden="true">★</span>
+            <span><small>점수</small><strong id="score-value">0</strong></span>
+          </div>
+          <div class="stat-pill timer-pill" id="timer-pill">
+            <span class="timer-ring" id="timer-ring"><i></i></span>
+            <span><small>남은 시간</small><strong id="timer-value">00:45</strong></span>
+          </div>
+        </div>
+      </header>
+
+      <section class="mission-card glass" id="mission-card" aria-live="polite">
+        <div class="mission-mascot" aria-hidden="true"><i></i></div>
+        <span class="visually-hidden" id="mission-index">01</span>
+        <div class="mission-copy">
+          <span class="eyebrow" id="mission-eyebrow">지금 할 일</span>
+          <strong id="mission-title">완벽한 반숙을 만들어주세요</strong>
+          <p id="mission-text">계란을 아래로 휘둘러 팬의 두꺼운 림에 톡 부딪혀보세요.</p>
+        </div>
+        <div class="mission-progress" aria-label="단계 진행도">
+          <i class="active"></i><i></i><i></i>
+        </div>
+      </section>
+
+      <div class="best-badge glass">
+        <span class="difficulty-badge" id="difficulty-badge">보통</span>
+        <span>최고</span>
+        <strong id="best-value">0</strong>
+      </div>
+
+      <div class="danger-flash" id="danger-flash" aria-hidden="true"></div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <section class="kitchen-event glass" id="kitchen-event" role="status" aria-live="polite" aria-labelledby="kitchen-event-title" aria-describedby="kitchen-event-message" aria-hidden="true">
+        <div class="event-accent" aria-hidden="true"></div>
+        <div class="event-icon" id="kitchen-event-icon" aria-hidden="true">!</div>
+        <div class="event-copy">
+          <span class="eyebrow" id="kitchen-event-eyebrow">앗!</span>
+          <strong id="kitchen-event-title">불꽃이 흔들려요!</strong>
+          <p id="kitchen-event-message">빠르게 대응하면 조리 흐름을 지킬 수 있어요.</p>
+          <div class="event-timer" id="kitchen-event-timer" aria-hidden="true"><i id="kitchen-event-timer-fill"></i></div>
+        </div>
+        <button class="event-response-button" id="kitchen-event-response" type="button">
+          <span id="kitchen-event-response-label">대응하기</span><kbd>E</kbd>
+        </button>
+      </section>
+
+      <aside class="achievement-toast glass" id="achievement-toast" role="status" aria-live="polite" aria-hidden="true">
+        <div class="achievement-toast-icon" id="achievement-toast-icon" aria-hidden="true">★</div>
+        <div>
+          <span>새 배지!</span>
+          <strong id="achievement-toast-title">첫 후라이</strong>
+          <p id="achievement-toast-description">첫 번째 요리를 완성했어요.</p>
+        </div>
+      </aside>
+      <div class="world-label crack-label" id="crack-label" aria-hidden="true">
+        <span class="tap-icon" aria-hidden="true">톡</span>
+        <strong>톡톡!</strong>
+        <div class="tap-timing" aria-hidden="true">
+          <span class="tap-safe-zone"></span>
+          <i id="tap-timing-marker"></i>
+        </div>
+        <small id="crack-timing-text">초록 영역에서 톡!</small>
+        <div class="tap-pips" aria-hidden="true"></div>
+      </div>
+      <div class="world-label egg-label" id="egg-label" aria-hidden="true">
+        <span class="mouse-glyph"></span>
+        <strong>잡아서 천천히 이동</strong>
+      </div>
+
+      <section class="crack-stage" id="crack-stage" aria-labelledby="crack-stage-title" aria-hidden="true">
+        <div class="crack-stage-copy">
+          <span class="eyebrow">첫 번째 손맛</span>
+          <strong id="crack-stage-title">팬 가장자리에 톡!</strong>
+          <p id="crack-stage-help">두꺼운 팬 테두리를 향해 짧고 곧게 휘둘러보세요.</p>
+        </div>
+        <div class="crack-motion-zone" id="crack-motion-zone">
+          <div class="crack-speed-guide" aria-hidden="true"><i></i><i></i><i></i></div>
+          <button class="swing-egg" id="swing-egg" type="button" aria-label="계란을 잡고 아래로 빠르게 휘두르기">
+            <i class="swing-egg-shine"></i><i class="swing-crack-line"></i>
+          </button>
+          <div class="crack-impact-burst" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="ceramic-rim" aria-hidden="true"><span></span></div>
+        </div>
+        <div class="crack-meter" aria-live="polite">
+          <span id="crack-meter-label">힘을 모아 아래로</span>
+          <div aria-hidden="true"><i id="crack-meter-fill"></i><b></b><b></b></div>
+          <strong id="crack-penalty">감점 없음</strong>
+        </div>
+      </section>
+
+      <section class="cook-panel glass" id="cook-panel" aria-label="조리 상태">
+        <div class="cook-panel-head">
+          <div>
+            <span class="eyebrow">익힘 상태</span>
+            <strong id="doneness-title">팬이 기다리고 있어요</strong>
+            <p id="cook-step-help">지금 해야 할 행동만 하나씩 알려드릴게요.</p>
+          </div>
+          <div class="cook-readouts">
+            <div class="heat-indicator" id="heat-indicator">
+              <i aria-hidden="true"></i><span>불</span><strong id="heat-value">중불</strong>
+            </div>
+            <div class="cook-time" aria-hidden="true"><strong id="cook-time">0.0</strong><small>초</small></div>
+          </div>
+        </div>
+        <ol class="cooking-step-list" id="cooking-step-list" aria-label="조리 단계">
+          <li data-cook-step="set-edge" class="active" aria-current="step"><i>1</i><span>굴리기</span><small>좌우로</small></li>
+          <li data-cook-step="season"><i>2</i><span>소금</span><small>한 번</small></li>
+          <li data-cook-step="flip"><i>3</i><span>뒤집기</span><small>위로</small></li>
+          <li data-cook-step="plate"><i>4</i><span>담기</span><small>딱 맞게</small></li>
+        </ol>
+        <div class="cook-penalty" id="cook-penalty" aria-live="polite"><span>실수</span><strong id="cook-penalty-value">0</strong><small id="cook-penalty-reason">아직 감점 없음</small></div>
+        <div class="cook-detail-grid" aria-label="세부 익힘 상태">
+          <div class="cook-detail white-detail" id="white-detail" role="progressbar" aria-label="흰자 익힘" aria-valuemin="0" aria-valuemax="120" aria-valuenow="0">
+            <div><span>흰자</span><strong id="white-detail-value">0</strong></div>
+            <div class="cook-detail-track"><i id="white-detail-fill"></i><b id="white-detail-target"></b></div>
+          </div>
+          <div class="cook-detail yolk-detail" id="yolk-detail" role="progressbar" aria-label="노른자 익힘" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div><span>노른자</span><strong id="yolk-detail-value">0</strong></div>
+            <div class="cook-detail-track"><i id="yolk-detail-fill"></i><b id="yolk-detail-target"></b></div>
+          </div>
+          <div class="cook-detail edge-detail" id="edge-detail" role="progressbar" aria-label="가장자리 갈변" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div><span>가장자리</span><strong id="edge-detail-value">0</strong></div>
+            <div class="cook-detail-track"><i id="edge-detail-fill"></i><b id="edge-detail-target"></b></div>
+          </div>
+        </div>
+        <div class="doneness-track" id="doneness-track">
+          <div class="track-gradient"></div>
+          <div class="perfect-zone"><span>딱 좋아요</span></div>
+          <div class="landing-marker" id="landing-marker" aria-hidden="true"><i></i><span>접시</span></div>
+          <div class="track-marker" id="track-marker"><i></i></div>
+        </div>
+        <div class="track-labels">
+          <span>촉촉</span><span>바삭</span>
+        </div>
+        <div class="cook-controls" id="cook-controls">
+          <div class="pan-gesture" id="pan-gesture" aria-labelledby="pan-gesture-title">
+            <div
+              class="pan-gesture-pad"
+              id="pan-gesture-pad"
+              role="slider"
+              tabindex="0"
+              aria-label="팬 좌우로 굴리기"
+              aria-valuemin="-100"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <span class="pan-gesture-arrow left" aria-hidden="true">‹</span>
+              <span class="pan-gesture-track" aria-hidden="true"><i></i><b></b></span>
+              <span class="pan-gesture-arrow right" aria-hidden="true">›</span>
+            </div>
+            <div class="pan-gesture-copy">
+              <strong id="pan-gesture-title">팬을 좌우로 살랑살랑</strong>
+              <small id="pan-gesture-hint">노른자가 가운데에 머물도록 리듬 있게 굴리세요.</small>
+            </div>
+            <div class="pan-gesture-progress" role="progressbar" aria-label="팬 굴리기 진행" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pan-gesture-progress-fill"></i></div>
+          </div>
+          <div class="heat-control" data-level="mid" aria-label="화력 조절">
+            <button id="heat-down-button" type="button" aria-label="화력 낮추기">−</button>
+            <div aria-live="polite">
+              <span class="heat-flame" aria-hidden="true"></span>
+              <span class="heat-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+              <strong id="heat-level">중불</strong>
+            </div>
+            <button id="heat-up-button" type="button" aria-label="화력 높이기">＋</button>
+          </div>
+          <div class="cook-action-buttons" aria-label="조리 동작">
+            <button id="season-button" data-cook-action="season" type="button">
+              <span aria-hidden="true">✦</span><strong>간 맞추기</strong><small id="season-action-status">1회</small>
+            </button>
+            <button id="baste-button" data-cook-action="baste" type="button" hidden>
+              <span aria-hidden="true">≈</span><strong>기름 끼얹기</strong><small id="baste-action-status">준비 중</small>
+            </button>
+          </div>
+        </div>
+        <button class="serve-button" id="serve-button" type="button" disabled>
+          <span class="serve-icon" aria-hidden="true"><i></i></span>
+          <span><strong>완성!</strong><small>지금 접시에 담기</small></span>
+          <kbd>SPACE</kbd>
+        </button>
+      </section>
+
+      <aside class="stability-card glass" id="stability-card">
+        <div class="stability-head">
+          <span><i class="shield-icon">♡</i> 껍데기</span>
+          <strong id="stability-value">100%</strong>
+        </div>
+        <div class="stability-track"><i id="stability-fill"></i></div>
+        <p id="stability-tip">급하게 움직이면 껍질이 깨져요</p>
+      </aside>
+
+      <div class="start-overlay" id="start-overlay" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-hidden="false">
+        <header class="home-heading">
+          <span class="home-kicker">톡 · 살랑 · 노릇</span>
+          <h1 id="intro-title">한 판만 구울까?</h1>
+          <p>깨고, 굴리고, 딱 좋을 때 꺼내요.</p>
+        </header>
+        <div class="intro-visual" aria-hidden="true"></div>
+        <section class="intro-card" aria-label="게임 시작 설정">
+          <div class="difficulty-select">
+            <div class="difficulty-heading">
+              <span>오늘의 불맛</span><small>손맛의 세기를 골라요</small>
+            </div>
+            <div class="difficulty-options" role="group" aria-label="난이도 선택">
+              <button type="button" data-difficulty="easy" aria-pressed="false"><i class="difficulty-art sprout"></i><span><strong>연습</strong><small>천천히 구워봐요</small></span></button>
+              <button type="button" data-difficulty="normal" aria-pressed="true"><i class="difficulty-art pan"></i><span><strong>보통</strong><small>딱 맛있게!</small></span></button>
+              <button type="button" data-difficulty="hard" aria-pressed="false"><i class="difficulty-art flame"></i><span><strong>집중</strong><small>계란을 잘 봐요</small></span></button>
+              <button class="extreme" type="button" data-difficulty="extreme" aria-pressed="false"><i class="difficulty-art pepper"></i><span><strong>아슬</strong><small>태우지 마!</small></span></button>
+            </div>
+            <p id="difficulty-summary" aria-live="polite">균형 잡힌 속도와 타이밍으로 기본기를 익혀보세요.</p>
+          </div>
+          <button class="primary-button" id="start-button" type="button">
+            <span><i class="button-pan" aria-hidden="true"></i>아침 한 판</span><b>GO</b>
+          </button>
+          <nav class="home-nav" aria-label="홈 메뉴">
+            <button id="achievements-button" type="button" aria-haspopup="dialog"><i class="nav-badge">★</i><span>수집</span><small id="achievement-summary-count">0/0</small></button>
+            <button class="theme-button" id="theme-button" type="button" aria-label="야간 모드 사용" aria-pressed="false"><i class="nav-theme" aria-hidden="true"></i><span>화면</span><small>낮/밤</small></button>
+            <button class="sound-button" id="sound-button" type="button" aria-label="소리 켜기"><i class="nav-sound" aria-hidden="true"></i><span>소리</span><small class="sound-state">켜짐</small></button>
+          </nav>
+          <span class="visually-hidden" id="achievement-summary-text">아직 달성한 업적이 없어요</span>
+        </section>
+      </div>
+
+      <div class="result-overlay" id="result-overlay" role="dialog" aria-modal="true" aria-labelledby="result-title" aria-hidden="true">
+        <div class="result-card">
+          <div class="result-stamp" id="result-stamp">참 잘했어요!</div>
+          <div class="result-plate" aria-hidden="true">
+            <span class="fried-egg"><i></i></span>
+            <span class="result-steam">〰</span>
+          </div>
+          <span class="eyebrow" id="result-eyebrow">오늘의 계란</span>
+          <h2 id="result-title">완벽한 후라이!</h2>
+          <p id="result-message">노른자는 촉촉하고, 가장자리는 완벽해요.</p>
+          <div class="result-achievements" id="result-achievements" aria-live="polite" hidden></div>
+          <div class="result-ratings" aria-label="조리 평가">
+            <div><span><i class="rating-white"></i>흰자</span><strong id="result-white-stars">★★★★★</strong></div>
+            <div><span><i class="rating-yolk"></i>노른자</span><strong id="result-yolk-stars">★★★★★</strong></div>
+            <div><span><i class="rating-heat"></i>뒤집기</span><strong id="result-heat-stars">★★★★★</strong></div>
+            <div><span><i class="rating-timing"></i>톡 깨기</span><strong id="result-timing-stars">★★★★★</strong></div>
+          </div>
+          <div class="score-breakdown">
+            <span>오늘의 점수 <small id="cooking-score">익힘 +900</small><small id="handling-score">손놀림 +100</small><small id="difficulty-multiplier">×1.00</small></span>
+            <strong id="round-score">+1,000</strong>
+          </div>
+          <div class="result-actions">
+            <button class="primary-button" id="retry-button" type="button">
+              <span>다시 굽기</span><i>↻</i>
+            </button>
+            <button class="secondary-button" id="change-difficulty-button" type="button">홈으로</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="achievement-overlay" id="achievement-overlay" role="dialog" aria-modal="true" aria-labelledby="achievement-dialog-title" aria-hidden="true">
+        <section class="achievement-card">
+          <div class="achievement-card-head">
+            <div>
+              <span class="eyebrow">나의 작은 수집책</span>
+              <h2 id="achievement-dialog-title">계란 컬렉션</h2>
+              <p id="achievement-progress-text">0개 달성</p>
+            </div>
+            <button id="achievement-close-button" type="button" aria-label="업적 목록 닫기">×</button>
+          </div>
+          <div class="collection-tabs" role="tablist" aria-label="수집 항목">
+            <button type="button" role="tab" id="achievement-tab" aria-controls="achievement-panel" aria-selected="true" data-collection-tab="achievements">배지</button>
+            <button type="button" role="tab" id="skin-tab" aria-controls="skin-panel" aria-selected="false" tabindex="-1" data-collection-tab="skins">스킨</button>
+          </div>
+          <div id="achievement-panel" role="tabpanel" aria-labelledby="achievement-tab">
+            <div class="achievement-progress" aria-hidden="true"><i id="achievement-progress-fill"></i></div>
+            <div class="achievement-list" id="achievement-list" role="list"></div>
+          </div>
+          <div id="skin-panel" role="tabpanel" aria-labelledby="skin-tab" hidden>
+            <div class="skin-category-tabs" role="tablist" aria-label="스킨 종류">
+              <button id="skin-category-egg" type="button" role="tab" aria-controls="skin-list" aria-selected="true" data-skin-category="egg">계란</button>
+              <button id="skin-category-pan" type="button" role="tab" aria-controls="skin-list" aria-selected="false" tabindex="-1" data-skin-category="pan">프라이팬</button>
+              <button id="skin-category-kitchen" type="button" role="tab" aria-controls="skin-list" aria-selected="false" tabindex="-1" data-skin-category="kitchen">주방</button>
+            </div>
+            <p class="skin-help">배지를 모아 스킨을 열고 원하는 모습을 장착하세요.</p>
+            <div class="skin-list" id="skin-list" role="list"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

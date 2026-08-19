@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.chrome-test*/
+game-preview.png
+game-play.png
+smoke-gameplay.png
+game-mobile*.png
+smoke-mobile.png
+smoke-mobile-home.png
+smoke-crack.png
+*.jks
+*.keystore
+android/local.properties
+*.log

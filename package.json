@@ -1,0 +1,25 @@
+{
+  "name": "eggcellent-kitchen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "cap:build": "npm run build",
+    "cap:add:android": "cap add android",
+    "cap:sync:android": "npm run cap:build && cap sync android",
+    "cap:open:android": "cap open android",
+    "cap:run:android": "npm run cap:sync:android && cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/core": "8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.2",
+    "vite": "^6.4.1"
+  }
+}
