@@ -25,6 +25,16 @@ npm run dev
 
 프로덕션 빌드는 `npm run build`, 빌드 미리보기는 `npm run preview`를 사용합니다. Chrome 또는 Edge가 설치된 환경에서는 `npm run test:smoke`로 실제 포인터 플레이, 결과 판정, 다크모드와 반응형 레이아웃을 자동 검증할 수 있습니다.
 
+## GitHub Pages 배포
+
+`main` 브랜치에 변경 사항을 푸시하면 GitHub Actions가 Pages 전용 경로(`/EGG/`)로 게임을 빌드하고 자동 배포합니다.
+
+- 공개 주소: <https://monitari.github.io/EGG/>
+- 워크플로: `.github/workflows/deploy-pages.yml`
+- 로컬 Pages 빌드 확인: `npm run build:pages`
+
+GitHub 저장소에서 최초 한 번 `Settings → Pages → Build and deployment → Source`를 **GitHub Actions**로 선택해야 합니다. 이후에는 `main` 브랜치에 푸시할 때마다 같은 주소가 자동 갱신됩니다. 일반 `npm run build`는 로컬 및 Capacitor용 설정을 그대로 사용하므로 모바일 빌드에는 영향을 주지 않습니다.
+
 ## 조작
 
 ### 마우스와 터치
